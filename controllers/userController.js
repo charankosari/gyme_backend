@@ -4,6 +4,8 @@ const User = require("../models/userModel");
 const sendJwt = require("../utils/jwttokenSend");
 const sendEmail = require("../utils/sendEmail");
 const crypto = require("crypto");
+const GymUsersModel = require("../models/GymusersModel");
+const moment = require("moment");
 
 // user register
 exports.register = asyncHandler(async (req, res, next) => {
@@ -296,4 +298,246 @@ exports.deleteUser = asyncHandler(async (req, res, next) => {
   const message = await User.findByIdAndDelete(id);
 
   res.status(200).json({ success: true, message: "user deleted successfully" });
+});
+function generateGymId() {
+  const timestamp = Date.now().toString();
+  const randomNum = Math.floor(Math.random() * 1000000).toString();
+  const hash = crypto
+    .createHash("sha256")
+    .update(timestamp + randomNum)
+    .digest("hex");
+  const gymid = parseInt(hash.substring(0, 6), 16);
+  return gymid.toString().padStart(6, "0"); // Ensure it's 6 digits long
+}
+exports.addUser = asyncHandler(async (req, res, next) => {
+  try {
+    const {
+      name,
+      email,
+      number,
+      gender,
+      height,
+      weight,
+      subendsin,
+      subscriptionStartDate,
+    } = req.body;
+
+    const gymid = await generateGymId(); // Generate unique gym ID
+    const subscriptionStartDateMoment = subscriptionStartDate
+      ? moment(subscriptionStartDate)
+      : moment();
+    const subscriptionEndDate = subscriptionStartDateMoment
+      .clone()
+      .add(subendsin, "days");
+
+    let attendance = {};
+    for (
+      let m = subscriptionStartDateMoment;
+      m.isBefore(subscriptionEndDate);
+      m.add(1, "days")
+    ) {
+      attendance[m.format("DD-MM-YYYY")] = null;
+    }
+
+    const newUser = await GymUsersModel.create({
+      name,
+      email,
+      number,
+      gender,
+      height,
+      weight,
+      gymid,
+      subscriptionStartDate: subscriptionStartDateMoment.toDate(),
+      subendsin,
+      attendance,
+    });
+
+    const htmlMessage = `
+    <html>
+    <head>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          color: #333;
+          line-height: 1.6;
+          padding: 20px;
+        }
+        h1 {
+          color: #2BB673;
+        }
+        p {
+          margin: 10px 0;
+        }
+        .container {
+          max-width: 600px;
+          margin: auto;
+          padding: 20px;
+          border: 1px solid #ddd;
+          border-radius: 8px;
+        }
+        .footer {
+          margin-top: 20px;
+          font-size: 0.9em;
+          color: #666;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h1>Welcome to the Gym!</h1>
+        <p><strong>Name:</strong> ${name}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Gym ID:</strong> ${gymid}</p>
+        <p><strong>Subscription Start Date:</strong> ${subscriptionStartDateMoment.format(
+          "DD-MM-YYYY"
+        )}</p>
+        <p><strong>Subscription Duration:</strong> ${subendsin} days</p>
+        <p>We are excited to have you as part of our gym community. If you have any questions or need assistance, feel free to reach out to us.</p>
+      </div>
+      <div class="footer">
+        <p>Thank you for choosing our gym.</p>
+        <p>If you did not sign up for this service, please ignore this email.</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+    await sendEmail({
+      email,
+      subject: "Welcome to the Gyme",
+      html: htmlMessage,
+    });
+
+    res.status(201).json({
+      success: true,
+      data: newUser,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+exports.getUserByGymid = asyncHandler(async (req, res, next) => {
+  const user = await GymUsersModel.findOne(req.params.id);
+  res.status(200).json({ success: true, user });
+});
+exports.SetAttendance = asyncHandler(async (req, res, next) => {
+  try {
+    const { id } = req.params.gymid;
+    const { date, attendance } = req.body;
+    if (!["yes", "no"].includes(attendance)) {
+      return next(
+        new errorHandler(
+          "Invalid attendance status. Must be 'yes', 'no', or null.",
+          400
+        )
+      );
+    }
+    const user = await GymUsersModel.findOne(id);
+    if (!user) {
+      return next(new errorHandler(`User with ID ${id} not found`, 404));
+    }
+    user.attendance.set(date, attendance);
+    await user.save();
+    res.status(200).json({
+      success: true,
+      message: "Attendance updated successfully",
+      user,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+exports.updateUsersSub = asyncHandler(async (req, res, next) => {
+  try {
+    const { id, days } = req.body;
+    const user = await GymUsersModel.findById(id);
+    if (!user) {
+      return next(new errorHandler(`User with ID ${id} not found`, 404));
+    }
+    user.subendsin = Math.floor(user.subendsin) + Math.floor(days);
+    const s = user.attendance;
+    const lastEntry = Array.from(s.entries()).pop();
+    const lastDate = lastEntry ? lastEntry[0] : null;
+    if (lastDate) {
+      let currentDate = moment(lastDate, "DD-MM-YYYY");
+      for (let i = 1; i <= days; i++) {
+        currentDate = currentDate.add(1, "days");
+        const newDate = currentDate.format("DD-MM-YYYY");
+
+        s.set(newDate, null);
+      }
+    } else {
+      let currentDate = moment();
+      for (let i = 1; i <= days; i++) {
+        currentDate = currentDate.add(1, "days");
+        const newDate = currentDate.format("DD-MM-YYYY");
+
+        s.set(newDate, null);
+      }
+    }
+
+    await user.save();
+
+    const htmlMessage = `
+    <html>
+    <head>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          color: #333;
+          line-height: 1.6;
+          padding: 20px;
+        }
+        h1 {
+          color: #2BB673;
+        }
+        p {
+          margin: 10px 0;
+        }
+        .container {
+          max-width: 600px;
+          margin: auto;
+          padding: 20px;
+          border: 1px solid #ddd;
+          border-radius: 8px;
+        }
+        .footer {
+          margin-top: 20px;
+          font-size: 0.9em;
+          color: #666;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h1>Updated the membership!</h1>
+        <p><strong>Name:</strong> ${user.name}</p>
+        <p><strong>Email:</strong> ${user.email}</p>
+        <p><strong>Gym ID:</strong> ${user.gymid}</p>
+       
+        <p><strong>Subscription Duration:</strong> ${user.subendsin} days</p>
+      </div>
+      <div class="footer">
+        <p>Thank you for choosing our gym.</p>
+        <p>If you did not sign up for this service, please ignore this email.</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+    await sendEmail({
+      email: user.email,
+      subject: "membership upgraded",
+      html: htmlMessage,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Subscription and attendance updated successfully",
+      user,
+    });
+  } catch (error) {
+    next(error);
+  }
 });

@@ -117,12 +117,11 @@ userSchema.methods.jwtToken = function () {
   let expiresIn;
 
   if (this.gymsubsription === "trial") {
-    const trialPeriod = 15 * 24 * 60 * 60 * 1000; // 15 days in milliseconds
+    const trialPeriod = 15 * 24 * 60 * 60 * 1000;
     const currentTime = Date.now();
     const trialEndTime = this.subscriptionStartDate.getTime() + trialPeriod;
 
     if (trialEndTime > currentTime) {
-      // Calculate the remaining time in days
       const remainingDays = Math.ceil(
         (trialEndTime - currentTime) / (24 * 60 * 60 * 1000)
       );
@@ -131,9 +130,9 @@ userSchema.methods.jwtToken = function () {
       throw new Error("Trial period has expired");
     }
   } else {
-    expiresIn = process.env.JWT_EXPIRE;
+    expiresIn = process.env.jwt_expire;
   }
-
+  console.log(expiresIn);
   return jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
     expiresIn,
   });
@@ -141,7 +140,6 @@ userSchema.methods.jwtToken = function () {
 
 // password compare
 userSchema.methods.comparePassword = async function (password) {
-  console.log(password, this.password);
   return await bcrypt.compare(password, this.password);
 };
 

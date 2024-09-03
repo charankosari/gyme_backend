@@ -18,17 +18,23 @@ exports.isAuthorized = asyncHandler(async (req, res, next) => {
   next();
 });
 
-exports.roleAuthorize = (...role) => {
+exports.roleAuthorize = (roles) => {
   return (req, res, next) => {
-    const user = req.user.role;
-    if (!role.includes(user)) {
+    const userRole = req.gym?.role; // Access role from req.user
+
+    if (!userRole) {
+      return next(new errorHandler("User role is not set.", 401));
+    }
+
+    if (!roles.includes(userRole)) {
       return next(
         new errorHandler(
-          `the role ${user} is not allow to access this resourece`,
+          `The role ${userRole} is not allowed to access this resource.`,
           401
         )
       );
     }
+
     next();
   };
 };

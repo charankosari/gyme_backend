@@ -3,7 +3,6 @@ const router = express.Router();
 const {
   register,
   login,
-  logout,
   forgotPassword,
   resetPassword,
   updatePassword,
@@ -13,7 +12,13 @@ const {
   getUser,
   updateUserRole,
   deleteUser,
+  //users
+  addUser,
+  getUserByGymid,
+  SetAttendance,
+  updateUsersSub,
 } = require("../controllers/userController");
+
 const { isAuthorized, roleAuthorize } = require("../middleware/auth");
 const upload = require("../middleware/multer");
 
@@ -24,6 +29,16 @@ router.route("/resetpassword/:id").post(resetPassword);
 router.route("/me").get(isAuthorized, userDetails);
 router.route("/password/update").put(isAuthorized, updatePassword);
 router.route("/me/profileupdate").put(isAuthorized, profileUpdate);
+router
+  .route("/user/adduser")
+  .post(isAuthorized, roleAuthorize(["Gym"]), addUser);
+router
+  .route("/user/getgymuser/:gymid")
+  .get(isAuthorized, roleAuthorize(["Gym"]), getUserByGymid)
+  .put(isAuthorized, roleAuthorize(["Gym"]), SetAttendance);
+router
+  .route("/user/updateuser/")
+  .put(isAuthorized, roleAuthorize(["Gym"]), updateUsersSub);
 router
   .route("/admin/getallusers")
   .get(isAuthorized, roleAuthorize("admin"), getAllUsers);
