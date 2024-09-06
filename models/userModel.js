@@ -85,6 +85,10 @@ const userSchema = new mongoose.Schema({
       message: (props) => `${props.value} is not a PAN `,
     },
   },
+  users: {
+    type: [Number],
+    default: [],
+  },
   owneraadhar: {
     type: String,
     required: true,

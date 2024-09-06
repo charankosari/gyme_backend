@@ -5,6 +5,7 @@ const sendJwt = require("../utils/jwttokenSend");
 const sendEmail = require("../utils/sendEmail");
 const crypto = require("crypto");
 const GymUsersModel = require("../models/GymusersModel");
+
 const moment = require("moment");
 
 // user register
@@ -306,8 +307,8 @@ function generateGymId() {
     .createHash("sha256")
     .update(timestamp + randomNum)
     .digest("hex");
-  const gymid = parseInt(hash.substring(0, 6), 16);
-  return gymid.toString().padStart(6, "0"); // Ensure it's 6 digits long
+  const gymid = parseInt(hash.substring(0, 6));
+  return gymid.toString().padStart(6, "0");
 }
 exports.addUser = asyncHandler(async (req, res, next) => {
   try {
@@ -321,8 +322,8 @@ exports.addUser = asyncHandler(async (req, res, next) => {
       subendsin,
       subscriptionStartDate,
     } = req.body;
-
-    const gymid = await generateGymId(); // Generate unique gym ID
+    const gymid = await generateGymId();
+    const gid = req.gym.id;
     const subscriptionStartDateMoment = subscriptionStartDate
       ? moment(subscriptionStartDate)
       : moment();
@@ -346,7 +347,7 @@ exports.addUser = asyncHandler(async (req, res, next) => {
       gender,
       height,
       weight,
-      gymid,
+      gymid: gymid.substring(0, 6),
       subscriptionStartDate: subscriptionStartDateMoment.toDate(),
       subendsin,
       attendance,
@@ -408,6 +409,11 @@ exports.addUser = asyncHandler(async (req, res, next) => {
       html: htmlMessage,
     });
 
+    await User.findByIdAndUpdate(
+      gid,
+      { $push: { users: gymid } },
+      { new: true }
+    );
     res.status(201).json({
       success: true,
       data: newUser,
