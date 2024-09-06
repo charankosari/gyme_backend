@@ -307,7 +307,7 @@ function generateGymId() {
     .createHash("sha256")
     .update(timestamp + randomNum)
     .digest("hex");
-  const gymid = parseInt(hash.substring(0, 6));
+  const gymid = parseInt(hash.substring(0, 6), 16);
   return gymid.toString().padStart(6, "0");
 }
 exports.addUser = asyncHandler(async (req, res, next) => {
