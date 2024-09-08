@@ -405,7 +405,7 @@ exports.addUser = asyncHandler(async (req, res, next) => {
 
     await sendEmail({
       email,
-      subject: "Welcome to the Gymee",
+      subject: "Welcome to the Gyme",
       html: htmlMessage,
     });
     const user = await User.findById(gid);
