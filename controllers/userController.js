@@ -423,9 +423,19 @@ exports.addUser = asyncHandler(async (req, res, next) => {
 });
 
 exports.getUserByGymid = asyncHandler(async (req, res, next) => {
-  const user = await GymUsersModel.findOne(req.params.id);
+  const { gymid } = req.params;
+  const user = await GymUsersModel.findOne({ gymid: gymid });
+
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: "User not found with this gymid",
+    });
+  }
+
   res.status(200).json({ success: true, user });
 });
+
 exports.SetAttendance = asyncHandler(async (req, res, next) => {
   try {
     const { id } = req.params.gymid;
