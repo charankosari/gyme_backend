@@ -12,7 +12,7 @@ const sendEmail = async (options) => {
   const mailOptions = {
     from: process.env.MAIL_SENDER,
     to: options.email,
-    subject: "reset password",
+    subject: "Gymee",
     html: options.html,
   };
   await transporter.sendMail(mailOptions);

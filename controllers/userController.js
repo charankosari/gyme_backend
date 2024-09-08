@@ -388,7 +388,7 @@ exports.addUser = asyncHandler(async (req, res, next) => {
         <h1>Welcome to the Gym!</h1>
         <p><strong>Name:</strong> ${name}</p>
         <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Gym ID:</strong> ${gymid}</p>
+        <p><strong>Gym ID:</strong> ${gymid.substring(0, 6)}</p>
         <p><strong>Subscription Start Date:</strong> ${subscriptionStartDateMoment.format(
           "DD-MM-YYYY"
         )}</p>
@@ -405,15 +405,14 @@ exports.addUser = asyncHandler(async (req, res, next) => {
 
     await sendEmail({
       email,
-      subject: "Welcome to the Gyme",
+      subject: "Welcome to the Gymee",
       html: htmlMessage,
     });
-
-    await User.findByIdAndUpdate(
-      gid,
-      { $push: { users: gymid } },
-      { new: true }
-    );
+    const user = await User.findById(gid);
+    if (user) {
+      user.users = [...user.users, parseInt(gymid.substring(0, 6))];
+      await user.save();
+    }
     res.status(201).json({
       success: true,
       data: newUser,
