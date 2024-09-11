@@ -635,64 +635,61 @@ exports.GetAllDetails = asyncHandler(async (req, res, next) => {
     next(error);
   }
 });
-
 exports.getAttendanceByDateRange = asyncHandler(async (req, res) => {
   try {
-    const gymId = req.gym.id; // Get gymId from JWT auth middleware (req.gym.id)
-
-    // Fetch the user based on gymId
+    const gymId = req.gym.id;
     const gymUser = await User.findById(gymId);
     if (!gymUser) {
       return res
         .status(404)
         .json({ success: false, message: "Gym user not found" });
     }
-
-    // Get users associated with this gym (user.users is assumed to be an array of user IDs)
     const associatedUsers = gymUser.users;
-
-    // Parse the start and end dates from the query or body
-    const { startDate, endDate } = req.body;
-    const start = startDate
-      ? moment(startDate, "DD-MM-YYYY")
-      : moment().startOf("month");
-    const end = endDate ? moment(endDate, "DD-MM-YYYY") : moment();
-
-    // Find gym models associated with the users within the date range
-    const attendanceData = await GymModel.find({
-      userId: { $in: associatedUsers },
-      "attendance.date": { $gte: start.toDate(), $lte: end.toDate() },
+    const gymUsers = await GymUsersModel.find({
+      gymid: { $in: associatedUsers },
     });
-
-    // Format and return the data with default as 0 for missing dates
-    let attendanceSummary = {};
-
-    // If there is no attendance, we create default 0 values for each date in the range
-    let currentDate = moment(start);
-    while (currentDate <= end) {
-      const formattedDate = currentDate.format("DD-MM-YYYY");
-      attendanceSummary[formattedDate] = 0; // Default value for missing dates
-      currentDate = currentDate.add(1, "day");
+    if (!gymUsers || gymUsers.length === 0) {
+      return res
+        .status(404)
+        .json({ success: false, message: "No gym users found for this gym" });
     }
-
-    // Iterate over found attendance data to update the summary
-    attendanceData.forEach((record) => {
-      const userAttendance = record.attendance;
-      for (const [date, status] of Object.entries(userAttendance)) {
-        if (attendanceSummary[date] !== undefined) {
-          // Increase the count for each present ('yes') attendance
-          if (status === "yes") {
-            attendanceSummary[date] += 1; // Increment for each present
-          }
+    const { startDate, endDate } = req.body;
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide start and end dates",
+      });
+    }
+    const start = moment(startDate, "DD-MM-YYYY");
+    const end = moment(endDate, "DD-MM-YYYY");
+    if (!start.isValid() || !end.isValid()) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid date format" });
+    }
+    if (end.isBefore(start)) {
+      return res.status(400).json({
+        success: false,
+        message: "End date cannot be before start date",
+      });
+    }
+    let attendanceCount = {};
+    const currentDate = moment(start);
+    while (currentDate.isSameOrBefore(end)) {
+      attendanceCount[currentDate.format("DD-MM-YYYY")] = 0;
+      currentDate.add(1, "day");
+    }
+    gymUsers.forEach((gymUser) => {
+      gymUser.attendance.forEach((value, date) => {
+        if (attendanceCount.hasOwnProperty(date) && value === "yes") {
+          attendanceCount[date] += 1;
         }
-      }
+      });
     });
-
     return res.status(200).json({
       success: true,
       data: {
-        users: associatedUsers.length,
-        attendance: attendanceSummary,
+        attendance: attendanceCount,
       },
     });
   } catch (error) {

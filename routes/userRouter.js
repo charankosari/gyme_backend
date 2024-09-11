@@ -20,6 +20,7 @@ const {
 
   //gym-admin
   GetAllDetails,
+  getAttendanceByDateRange,
 } = require("../controllers/userController");
 
 const { isAuthorized, roleAuthorize } = require("../middleware/auth");
@@ -42,6 +43,7 @@ router
   .route("/user/updateuser/")
   .put(isAuthorized, roleAuthorize(["Gym"]), updateUsersSub);
 router.route("/gym-admin").post(isAuthorized, GetAllDetails);
+router.route("/admin-details").post(isAuthorized, getAttendanceByDateRange);
 router
   .route("/admin/getallusers")
   .get(isAuthorized, roleAuthorize("admin"), getAllUsers);
