@@ -47,6 +47,9 @@ const GymUserSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  subscriptionEndDate: {
+    type: Date,
+  },
   subendsin: {
     type: Number,
     required: true,

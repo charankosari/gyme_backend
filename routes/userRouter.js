@@ -17,10 +17,12 @@ const {
   getUserByGymid,
   SetAttendance,
   updateUsersSub,
+
+  //gym-admin
+  GetAllDetails,
 } = require("../controllers/userController");
 
 const { isAuthorized, roleAuthorize } = require("../middleware/auth");
-const upload = require("../middleware/multer");
 
 router.route("/register").post(register);
 router.route("/login").post(login);
@@ -39,6 +41,7 @@ router
 router
   .route("/user/updateuser/")
   .put(isAuthorized, roleAuthorize(["Gym"]), updateUsersSub);
+router.route("/gym-admin").post(isAuthorized, GetAllDetails);
 router
   .route("/admin/getallusers")
   .get(isAuthorized, roleAuthorize("admin"), getAllUsers);
